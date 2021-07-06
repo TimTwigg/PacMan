@@ -6,10 +6,10 @@
 # include <conio.h>
 
 typedef enum {
-	UP = 1,
-	RIGHT = 2,
-	DOWN = 3,
-	LEFT = 4,
+	UP = 72,
+	RIGHT = 77,
+	DOWN = 80,
+	LEFT = 75,
 } Direction;
 
 typedef enum {
@@ -42,12 +42,25 @@ typedef enum {
 	CLEAR_TO_EOL = 6,
 } ANSI_INDEX;
 
+typedef enum {
+	_UP = 1,
+	_RIGHT = 2,
+	_DOWN = 3,
+	_LEFT = 4,
+} SYMBOL_INDEX;
+
 typedef struct {
 	int score;
 	int x;
 	int y;
 	Direction direction;
+	int symbol;
 } PacMan;
+
+typedef struct {
+	int x;
+	int y;
+} Coordinate;
 
 int mapGrid[12][12] = {
 	1,1,1,1,1,1,1,1,1,1,1,1,
@@ -73,6 +86,7 @@ int coinFlip(void);
 void addOther();
 void printMap();
 void updateFrame(void);
+void manageMove(void);
 void move(void);
 int writeAnsi(PCWSTR sequence);
 void up(void);
@@ -89,15 +103,13 @@ void main(void) {
 	player.x = 11;
 	player.y = 11;
 	player.direction = UP;
+	player.symbol = _UP;
 	mapSize = 12;
 
 	puts("Welcome to PacMan!");
 	addOther();
 	printMap();
-	pause();
-	for (int i = 0; i < 3; i++) {
-		move();
-	}
+	manageMove();
 }
 
 void print(char* s, Color c) {
@@ -133,7 +145,7 @@ void printMap() {
 	for (int i = 0; i < mapSize; i++) {
 		for (int j = 0; j < mapSize; j++) {
 			if (player.x - 1 == j && player.y - 1 == i) {
-				printf("%s", dirSymbols[player.direction]);
+				printf("%s", dirSymbols[player.symbol]);
 			}
 			else {
 				int id = mapGrid[i][j];
@@ -157,54 +169,87 @@ void printMap() {
 
 void updateFrame(void) {
 	writeAnsi(L"\033[2;1H");
-	player.score += 10;
 	printMap();
+}
+
+void manageMove(void) {
+	while (1) {
+		if (_kbhit()) {
+			int key = _getch();
+			if (key == UP && player.direction != DOWN) {
+				player.direction = UP;
+				player.symbol = _UP;
+			}
+			else if (key == RIGHT && player.direction != LEFT) {
+				player.direction = RIGHT;
+				player.symbol = _RIGHT;
+			}
+			else if (key == DOWN && player.direction != UP) {
+				player.direction = DOWN;
+				player.symbol = _DOWN;
+			}
+			else if (key == LEFT && player.direction != RIGHT) {
+				player.direction = LEFT;
+				player.symbol = _LEFT;
+			}
+			else if (key == 27) {
+				return;
+			}
+			else {
+				continue;
+			}
+		}
+		move();
+		pause();
+	}
 }
 
 void move(void) {
 	updateFrame();
 	int nextBlock = -1;
 	writeAnsi(L"\033[16;1H");
-	printf("Dir: %i", player.direction);
-	int dir = player.direction;
-	switch (dir) {
+	Coordinate old;
+	old.x = player.x;
+	old.y = player.y;
+	switch (player.direction) {
 	case UP:
 		if (player.y > 1) {
-			puts("UP");
 			player.y--;
-			nextBlock = mapGrid[player.y][player.x];
 		}
+		break;
 	case RIGHT:
 		if (player.x < mapSize - 1) {
 			player.x++;
-			nextBlock = mapGrid[player.y][player.x];
 		}
+		break;
 	case DOWN:
 		if (player.y < mapSize - 1) {
 			player.y++;
-			nextBlock = mapGrid[player.y][player.x];
 		}
+		break;
 	case LEFT:
 		if (player.x > 1) {
-			puts("LEFT");
 			player.x--;
-			nextBlock = mapGrid[player.y][player.x];
 		}
+		break;
 	}
-	if (nextBlock == -1 || nextBlock == WALL) {
-		/*TODO find other direction or just stop ?*/
+	nextBlock = mapGrid[player.y - 1][player.x - 1];
+	printf("\nCoords: %i %i  \n", player.x, player.y);
+	if (nextBlock == WALL) {
+		/*TODO find other direction or just stop ? */
+		player.x = old.x;
+		player.y = old.y;
+		return;
 	}
 
-	/*TODO move player (and ghosts)*/
+	/*TODO move ghosts*/
 
 	if (nextBlock == FOOD) {
 		player.score += 10;
-		mapGrid[player.y][player.x] = PATH;
+		mapGrid[player.y - 1][player.x - 1] = PATH;
 	}
 
 	/*TODO die if meet ghost*/
-
-	pause();
 }
 
 int writeAnsi(PCWSTR sequence) {
@@ -241,5 +286,5 @@ void right(void) {
 }
 
 void pause(void) {
-	Sleep(2000);
+	Sleep(500);
 }
