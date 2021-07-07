@@ -60,6 +60,12 @@ typedef struct {
 typedef struct {
 	int x;
 	int y;
+	Direction direction;
+} Ghost;
+
+typedef struct {
+	int x;
+	int y;
 } Coordinate;
 
 int mapGrid[12][12] = {
@@ -78,22 +84,29 @@ int mapGrid[12][12] = {
 };
 const PCWSTR ansiCodes[] = { L"\x1B[A", L"\x1B[B", L"\x1B[C", L"\x1B[D", L"\x1B[2J", L"\x1B[H", L"\x1B[K", };
 const char* dirSymbols[] = { "", "^", ">", "v", "<" };
+const Direction dirs[] = { UP, RIGHT, DOWN, LEFT };
+Ghost ghosts[4] = { 0 };
 HANDLE hConsole;
 PacMan player;
 int mapSize;
 void print(char* s, Color c);
 int coinFlip(void);
 void addOther();
-void printMap();
+Ghost makeGhosts(int x, int y);
+void printMap(void);
 void updateFrame(void);
 void manageMove(void);
-void move(void);
+int move(void);
+void moveGhosts(void);
 int writeAnsi(PCWSTR sequence);
 void up(void);
 void down(void);
 void left(void);
 void right(void);
 void pause(void);
+int checkMap(void);
+void exitGame(void);
+int getIndex(Direction direction);
 
 
 void main(void) {
@@ -105,6 +118,13 @@ void main(void) {
 	player.direction = UP;
 	player.symbol = _UP;
 	mapSize = 12;
+	int g = 0;
+	for (int x = 0; x < 2; x++) {
+		for (int y = 0; y < 2; y++) {
+			ghosts[g] = makeGhosts(6 + x, 6 + y);
+			g++;
+		}
+	}
 
 	puts("Welcome to PacMan!");
 	addOther();
@@ -128,7 +148,7 @@ int coinFlip(void) {
 	}
 }
 
-void addOther() {
+void addOther(void) {
 	/*Add secondary identifiers to map grid*/
 	for (int i = 0; i < mapSize; i++) {
 		for (int j = 0; j < mapSize; j++) {
@@ -139,15 +159,32 @@ void addOther() {
 	}
 }
 
-void printMap() {
+Ghost makeGhosts(int x, int y) {
+	Ghost temp;
+	temp.x = x;
+	temp.y = y;
+	temp.direction = UP;
+	return temp;
+}
+
+void printMap(void) {
 	/*Print out the map*/
 	printf("Score: %i\n\n", player.score);
 	for (int i = 0; i < mapSize; i++) {
 		for (int j = 0; j < mapSize; j++) {
+			int printed = FALSE;
 			if (player.x - 1 == j && player.y - 1 == i) {
 				printf("%s", dirSymbols[player.symbol]);
+				printed = TRUE;
 			}
-			else {
+			for (int g = 0; g < 4; g++) {
+				Ghost gh = ghosts[g];
+				if (gh.x - 1 == j && gh.y - 1 == i) {
+					printf("%i", gh.y);
+					printed = TRUE;
+				}
+			}
+			if (!printed) {
 				int id = mapGrid[i][j];
 				switch (id) {
 				case PATH:
@@ -199,12 +236,14 @@ void manageMove(void) {
 				continue;
 			}
 		}
-		move();
+		if (!move()) break;
+		moveGhosts();
 		pause();
 	}
+	exitGame();
 }
 
-void move(void) {
+int move(void) {
 	updateFrame();
 	int nextBlock = -1;
 	writeAnsi(L"\033[16;1H");
@@ -234,25 +273,69 @@ void move(void) {
 		break;
 	}
 	nextBlock = mapGrid[player.y - 1][player.x - 1];
-	printf("\nCoords: %i %i  \n", player.x, player.y);
 	if (nextBlock == WALL) {
-		/*TODO find other direction or just stop ? */
 		player.x = old.x;
 		player.y = old.y;
-		return;
+		return TRUE;
 	}
-
-	/*TODO move ghosts*/
 
 	if (nextBlock == FOOD) {
 		player.score += 10;
 		mapGrid[player.y - 1][player.x - 1] = PATH;
+		if (checkMap()) addOther();
 	}
 
-	/*TODO die if meet ghost*/
+	for (int g = 0; g < 4; g++) {
+		Ghost gh = ghosts[g];
+		if (gh.x == player.x && gh.y == player.y) {
+			return FALSE;
+		}
+	}
+
+	return TRUE;
+}
+
+void moveGhosts(void) {
+	for (int g = 0; g < 4; g++) {
+		Ghost gh = ghosts[g];
+		Coordinate old;
+		old.x = gh.x;
+		old.y = gh.y;
+		switch (gh.direction) {
+		case UP:
+			if (gh.y > 1) {
+				gh.y--;
+			}
+			break;
+		case RIGHT:
+			if (gh.x < mapSize - 1) {
+				gh.x++;
+			}
+			break;
+		case DOWN:
+			if (gh.y < mapSize - 1) {
+				gh.y++;
+			}
+			break;
+		case LEFT:
+			if (gh.x > 1) {
+				gh.x--;
+			}
+			break;
+		}
+		if (mapGrid[gh.y - 1][gh.x - 1] == WALL) {
+			gh.x = old.x;
+			gh.y = old.y;
+			int index = getIndex(gh.direction);
+			if (coinFlip()) index++;
+			else index += 3;
+			if (index > 3) index -= 4;
+		}
+	}
 }
 
 int writeAnsi(PCWSTR sequence) {
+	/*Executes ansi sequences on windows. Copied from StackOverflow*/
 	DWORD mode;
 	if (!GetConsoleMode(hConsole, &mode)) {
 		return GetLastError();
@@ -287,4 +370,29 @@ void right(void) {
 
 void pause(void) {
 	Sleep(500);
+}
+
+int checkMap(void) {
+	for (int i = 0; i < mapSize; i++) {
+		for (int j = 0; j < mapSize; j++) {
+			if (mapGrid[i][j] == FOOD) {
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
+}
+
+void exitGame(void) {
+	system("cls");
+	printf("Oh No You Lost!\nYour score was %i\n", player.score);
+}
+
+int getIndex(Direction direction) {
+	for (int g = 0; g < 4; g++) {
+		if (direction == dirs[g]) {
+			return g;
+		}
+	}
+	return -1;
 }
