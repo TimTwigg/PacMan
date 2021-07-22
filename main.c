@@ -423,7 +423,7 @@ void right(void) {
 }
 
 void pause(void) {
-	Sleep(500);
+	Sleep(250);
 }
 
 int checkMap(void) {
