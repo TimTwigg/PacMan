@@ -68,6 +68,7 @@ typedef struct {
 	int y;
 } Coordinate;
 
+/* TODO: Read mapgrid from csv file */
 int mapGrid[12][12] = {
 	1,1,1,1,1,1,1,1,1,1,1,1,
 	1,0,0,0,0,0,0,0,0,0,0,1,
@@ -82,14 +83,15 @@ int mapGrid[12][12] = {
 	1,0,0,0,0,0,0,0,0,0,0,1,
 	1,1,1,1,1,1,1,1,1,1,1,1
 };
-const PCWSTR ansiCodes[] = { L"\x1B[A", L"\x1B[B", L"\x1B[C", L"\x1B[D", L"\x1B[2J", L"\x1B[H", L"\x1B[K", };
-const char* dirSymbols[] = { "", "^", ">", "v", "<" };
-const Direction dirs[] = { UP, RIGHT, DOWN, LEFT };
+PCWSTR ansiCodes[] = { L"\x1B[A", L"\x1B[B", L"\x1B[C", L"\x1B[D", L"\x1B[2J", L"\x1B[H", L"\x1B[K", };
+char* dirSymbols[] = { "", "^", ">", "v", "<" };
+Direction dirs[] = { UP, RIGHT, DOWN, LEFT };
 Ghost ghosts[4] = { 0 };
 HANDLE hConsole;
 PacMan player;
 int mapSize;
 Color wallColor;
+void readMap(void);
 void print(char* s, Color c);
 int coinFlip(void);
 void addOther();
@@ -134,9 +136,48 @@ void main(void) {
 
 	/*Start the game*/
 	puts("Welcome to PacMan!");
-	addOther();
-	printMap();
-	manageMove();
+	//addOther();
+	//printMap();
+	//manageMove();
+	readMap();
+}
+
+/*void readMapw(void) {
+	char* mapName = "pacman_map_1_.csv";
+	FILE* fp;
+	char buffer[64];
+	//int map[31][28];
+	errno_t err;
+	err = fopen_s(&fp, mapName, "r");
+	int row = 0, col = 0;
+
+	while (fgets(buffer, 64, fp)) {
+		col = 0;
+		row++;
+		for (int i = 0; i < sizeof(buffer); i++) {
+			char* c = buffer[i];
+			if (!strcmp(c, ",")) {
+				printf("%s", c);
+			}
+			else printf("N");
+		}
+		//printf("#%s \n", buffer);
+	}
+	fclose(fp);
+}
+*/
+
+void readMap(void) {
+	FILE* f;
+	errno_t err;
+	err = fopen_s(&f, "pacman_map_1_.csv", "r");
+	int map[31][28];
+	for (int i = 0; i < 828; i++) {
+		fscanf_s(f, "%1d", &map[i]);
+	}
+	for (int i = 0; i < 5; i++) {
+		printf("%d ", map[i]);
+	}
 }
 
 void print(char* s, Color c) {
@@ -428,6 +469,7 @@ void pause(void) {
 
 int checkMap(void) {
 	/*Checks for remaining food on map and adds new food if necessary*/
+	// TODO: change map when food runs out, or if player travels through opening in side wall?
 	for (int i = 0; i < mapSize; i++) {
 		for (int j = 0; j < mapSize; j++) {
 			if (mapGrid[i][j] == FOOD) {
