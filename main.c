@@ -5,6 +5,10 @@
 # include <windows.h>
 # include <conio.h>
 
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
+
 typedef enum {
 	UP = 72,
 	RIGHT = 77,
@@ -91,7 +95,6 @@ HANDLE hConsole;
 PacMan player;
 int mapSize;
 Color wallColor;
-void readMap(void);
 void print(char* s, Color c);
 int coinFlip(void);
 void addOther();
@@ -114,7 +117,7 @@ int getIndex(Direction direction);
 void hideCursor(void);
 
 
-void main(void) {
+int main(void) {
 	/*Intitial setup*/
 	hideCursor();
 	srand((unsigned int)time(NULL));
@@ -136,48 +139,11 @@ void main(void) {
 
 	/*Start the game*/
 	puts("Welcome to PacMan!");
-	//addOther();
-	//printMap();
-	//manageMove();
-	readMap();
-}
+	addOther();
+	printMap();
+	manageMove();
 
-/*void readMapw(void) {
-	char* mapName = "pacman_map_1_.csv";
-	FILE* fp;
-	char buffer[64];
-	//int map[31][28];
-	errno_t err;
-	err = fopen_s(&fp, mapName, "r");
-	int row = 0, col = 0;
-
-	while (fgets(buffer, 64, fp)) {
-		col = 0;
-		row++;
-		for (int i = 0; i < sizeof(buffer); i++) {
-			char* c = buffer[i];
-			if (!strcmp(c, ",")) {
-				printf("%s", c);
-			}
-			else printf("N");
-		}
-		//printf("#%s \n", buffer);
-	}
-	fclose(fp);
-}
-*/
-
-void readMap(void) {
-	FILE* f;
-	errno_t err;
-	err = fopen_s(&f, "pacman_map_1_.csv", "r");
-	int map[31][28];
-	for (int i = 0; i < 828; i++) {
-		fscanf_s(f, "%1d", &map[i]);
-	}
-	for (int i = 0; i < 5; i++) {
-		printf("%d ", map[i]);
-	}
+	return 0;
 }
 
 void print(char* s, Color c) {
@@ -486,6 +452,8 @@ void exitGame(void) {
 	Sleep(2000);
 	system("cls");
 	printf("Oh No You Lost!\nYour score was %i\n", player.score);
+	printf("\nPress Enter to Quit");
+	char c = getch();
 }
 
 // TODO: save high score?
